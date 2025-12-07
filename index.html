@@ -1,87 +1,202 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Географическая викторина — 6 класс</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Кто хочет стать миллионером?</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f8f9fa;
+      margin: 0;
+      display: flex;
+      height: 100vh;
+    }
+    .sidebar {
+      width: 220px;
+      background: #1e1e2f;
+      color: #fff;
+      padding: 10px;
+      display: flex;
+      flex-direction: column-reverse;
+      justify-content: flex-start;
+      font-size: 14px;
+    }
+    .level {
+      padding: 6px 10px;
+      margin: 3px 0;
+      border-radius: 4px;
+      transition: background 0.3s;
+    }
+    .current-level {
+      background: #ffd700;
+      color: #000;
+      font-weight: bold;
+    }
+    .completed-level {
+      background: #28a745;
+      color: #fff;
+    }
+    .quiz-container {
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .question-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      text-align: center;
+      max-width: 600px;
+      width: 90%;
+    }
+    .answers button {
+      display: block;
+      margin: 12px auto;
+      padding: 12px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 6px;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      width: 100%;
+      transition: background-color 0.3s, transform 0.2s;
+    }
+    .answers button:hover {
+      transform: scale(1.02);
+    }
+    .answers button.correct {
+      background-color: #28a745 !important;
+    }
+    .answers button.wrong {
+      background-color: #dc3545 !important;
+    }
+    .answers button:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    .end-message {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #dc3545;
+    }
+    #restartBtn {
+      margin-top: 20px;
+      padding: 10px 16px;
+      font-size: 16px;
+      background-color: #ffc107;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <div class="container">
-    <h1>🧭 Географическая викторина — 6 класс</h1>
-
-    <label for="questionCount">Сколько вопросов вы хотите?</label>
-    <select id="questionCount">
-      <option value="5">5</option>
-      <option value="10">10</option>
-      <option value="15">15</option>
-      <option value="20">20</option>
-      <option value="25">25</option>
-      <option value="30">30</option>
-      <option value="35">35</option>
-      <option value="40">40</option>
-      <option value="45">45</option>
-      <option value="50">50</option>
-    </select>
-
-    <button id="startQuiz">Начать</button>
-    <div id="quizContainer"></div>
-    <button id="submitQuiz" style="display:none">Проверить</button>
-    <div id="results"></div>
+  <div class="sidebar" id="sidebar"></div>
+  <div class="quiz-container">
+    <div class="question-box">
+      <h2 id="question">Загрузка вопроса...</h2>
+      <div class="answers" id="answers"></div>
+      <div class="end-message" id="endMessage"></div>
+      <button id="restartBtn" onclick="restartGame()" style="display:none;">Сыграть ещё раз</button>
+    </div>
   </div>
 
-  <script>
-    let questions = [];
-    let currentQuiz = [];
+<script>
+  const levels = [
+    '1 000 000', '500 000', '250 000', '125 000', '64 000',
+    '32 000', '16 000', '8 000', '4 000', '2 000',
+    '1 000', '500', '300', '200', '100'
+  ];
 
-    async function loadQuestions() {
-      const res = await fetch('questions.json');
-      questions = await res.json();
+  const sidebar = document.getElementById('sidebar');
+  levels.forEach((lvl, i) => {
+    const div = document.createElement('div');
+    div.className = 'level';
+    div.id = 'lvl-' + i;
+    div.textContent = `${15 - i}. ${lvl}`;
+    sidebar.appendChild(div);
+  });
+
+  let questions = [];
+  let current = 0;
+  let audioWrong = new Audio("https://www.myinstants.com/media/sounds/wrong-answer-sound-effect.mp3");
+
+  async function loadQuestions() {
+    const res = await fetch('questions.json');
+    const data = await res.json();
+    questions = shuffle(data.questions).slice(0, 15);
+    showQuestion();
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
+    return arr;
+  }
 
-    function shuffle(array) {
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-    }
+  function showQuestion() {
+    document.getElementById('endMessage').textContent = '';
+    document.getElementById('restartBtn').style.display = 'none';
+    document.querySelectorAll('.level').forEach(el => el.classList.remove('current-level', 'completed-level'));
+    document.getElementById('lvl-' + (14 - current)).classList.add('current-level');
 
-    function startQuiz() {
-      const count = parseInt(document.getElementById('questionCount').value);
-      shuffle(questions);
-      currentQuiz = questions.slice(0, count);
-      const quizContainer = document.getElementById('quizContainer');
-      quizContainer.innerHTML = '';
+    const q = questions[current];
+    document.getElementById('question').textContent = q.question;
+    const shuffled = shuffle([...q.options]);
+    const answersDiv = document.getElementById('answers');
+    answersDiv.innerHTML = '';
 
-      currentQuiz.forEach((q, idx) => {
-        const div = document.createElement('div');
-        div.className = 'question-block';
-        div.innerHTML = `<p><strong>${idx + 1}. ${q.question}</strong></p>` +
-          q.choices.map((c, i) => `
-            <label>
-              <input type="radio" name="q${idx}" value="${c}" /> ${c}
-            </label><br />
-          `).join('');
-        quizContainer.appendChild(div);
-      });
+    shuffled.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.textContent = opt;
+      btn.onclick = () => handleAnswer(opt, q.options[q.answer]);
+      answersDiv.appendChild(btn);
+    });
+  }
 
-      document.getElementById('submitQuiz').style.display = 'inline-block';
-    }
+  function handleAnswer(chosen, correct) {
+    const btns = document.querySelectorAll('.answers button');
+    btns.forEach(b => {
+      b.disabled = true;
+      if (b.textContent === correct) b.classList.add('correct');
+      if (b.textContent === chosen && b.textContent !== correct) b.classList.add('wrong');
+    });
 
-    function checkQuiz() {
-      let score = 0;
-      currentQuiz.forEach((q, idx) => {
-        const selected = document.querySelector(`input[name="q${idx}"]:checked`);
-        if (selected && selected.value === q.answer) {
-          score++;
+    if (chosen === correct) {
+      document.getElementById('lvl-' + (14 - current)).classList.add('completed-level');
+      setTimeout(() => {
+        current++;
+        if (current < 15) showQuestion();
+        else {
+          document.getElementById('endMessage').textContent = 'Поздравляем! Вы выиграли миллион!';
+          document.getElementById('restartBtn').style.display = 'inline-block';
         }
-      });
-      document.getElementById('results').innerText = `Результат: ${score} из ${currentQuiz.length}`;
+      }, 1000);
+    } else {
+      setTimeout(() => {
+        audioWrong.play();
+        document.getElementById('endMessage').textContent = 'Неверно! Вы проиграли.';
+        document.getElementById('restartBtn').style.display = 'inline-block';
+      }, 800);
     }
+  }
 
-    document.getElementById('startQuiz').addEventListener('click', startQuiz);
-    document.getElementById('submitQuiz').addEventListener('click', checkQuiz);
-    loadQuestions();
-  </script>
+  function restartGame() {
+    current = 0;
+    shuffle(questions);
+    showQuestion();
+  }
+
+  loadQuestions();
+</script>
 </body>
 </html>
